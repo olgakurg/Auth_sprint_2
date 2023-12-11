@@ -3,21 +3,31 @@ from datetime import datetime
 from http import HTTPStatus
 
 from async_fastapi_jwt_auth import AuthJWT
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, Request
 from fastapi import HTTPException
 
+from src.db import redis
 from src.core.config import settings
 from src.models.session import SessionInDB
 from src.models.token import Token
 from src.models.users import UserApi
 from src.models.users import UserAuth
 from src.services.sessions import get_session_service, SessionService
-from src.services.tokens import TokenService, get_token_service
+from src.services.tokens import get_token_service, TokenService
 from src.services.users import get_user_service, UserService
 from .utils.settings import USER_NOT_CREATE, USER_NOT_FOUND, USER_ALREADY_EXISTS
+from src.helpers.query_limiter import Limiter, get_login
+from src.db.abc_redis import AsyncRedis
+from src.db.redis import get_redis
+
+from ...helpers.query_limiter import get_login
 
 router = APIRouter()
 
+limiter_login = Limiter(
+    db: AsyncRedis = Depends[get_redis()],
+key_func = get_login()
+)
 
 @AuthJWT.load_config
 def get_config():
@@ -54,6 +64,7 @@ async def create_user(
              description='возвращает пару токенов по данному user',
              tags=['Пользователи']
              )
+@limiter_login.limit(duration=10, limit=1)
 async def login_user(
         user: UserAuth,
         token_service: TokenService = Depends(get_token_service),

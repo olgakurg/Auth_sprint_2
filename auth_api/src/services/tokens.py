@@ -58,7 +58,7 @@ class TokenService:
         return access_token, refresh_token
 
     async def get_tokens(self, user: UserAuth):
-        user_db = await self.db.scalar(User, login=user.login, relation=User.roles)
+        user_db = await self.db.scalar(User, login=user.login)
         access_token, refresh_token = await self._generate_tokens(user_db)
         if not access_token:
             logging.info(f'no token comes to get_tokens from _generate_tokens')

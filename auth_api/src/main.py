@@ -1,8 +1,11 @@
 import logging
 from contextlib import asynccontextmanager
 
-from fastapi import FastAPI, Depends
+from fastapi import FastAPI, Request, status, Depends
+from fastapi.responses import ORJSONResponse
 from redis.asyncio import Redis
+from opentelemetry.instrumentation.fastapi import FastAPIInstrumentor
+
 from src.auth_api.v1 import roles, permissions, user_roles, users
 from src.core.config import settings
 from src.db import redis
@@ -31,19 +34,22 @@ app = FastAPI(
     lifespan=lifespan,
 )
 
-# @app.middleware('http')
-# async def before_request(request: Request, call_next):
-#     response = await call_next(request)
-#     request_id = request.headers.get('X-Request-Id')
-#     if not request_id:
-#         return ORJSONResponse(status_code=status.HTTP_400_BAD_REQUEST, content={'detail': 'X-Request-Id is required'})
-#     return response
-#
-# FastAPIInstrumentor.instrument_app(app)
+FastAPIInstrumentor.instrument_app(app)
+
+
+@app.middleware('http')
+async def before_request(request: Request, call_next):
+    response = await call_next(request)
+    headers = [str(header) for header in request.headers]
+    logging.info(f'request {headers}')
+    request_id = request.headers.get('X-Request-Id')
+    if not request_id:
+        return ORJSONResponse(status_code=status.HTTP_400_BAD_REQUEST, content={'detail': 'X-Request-Id is required'})
+    return response
 
 app.include_router(roles.router, prefix=f'/auth_api/v1/roles', dependencies=[Depends(get_current_user_global)])
 app.include_router(permissions.router, prefix=f'/auth_api/v1/permissions',
                    dependencies=[Depends(get_current_user_global)])
-app.include_router(users.router, prefix=f'/auth_api/v1/users', dependencies=[Depends(get_current_user_global)])
+app.include_router(users.router, prefix=f'/auth_api/v1/users')
 app.include_router(user_roles.router, prefix=f'/auth_api/v1/user_roles',
                    dependencies=[Depends(get_current_user_global)])

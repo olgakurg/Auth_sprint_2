@@ -2,32 +2,32 @@ import time
 from functools import wraps
 from http import HTTPStatus
 from typing import Callable
+from fastapi import Request, Depends
 
-from src.db.abc_redis import AsyncRedis
-from src.db.redis import get_redis
-from src.models.usets import UserAuth
+from src.models.users import UserAuth
 
 
-def get_login():
-    return request.args.get('login')
+async def get_login(request: Request):
+    body = await request.json()
+    return body['login']
 
 
 class Limiter:
-    def __init__(self, redis: AsyncRedis, key_func: Callable) -> None:
+    def __init__(self, redis, key_func: Callable):
         self.db = redis
         self.key_func = key_func
 
-    def limit(self, duration, limit):
-        def wrap(fn):
+    async def limit(self, duration, limit):
+        async def wrap(fn):
             @wraps(fn)
             async def wrapper(*args, **kwargs):
-                pipeline = self.db.get_pipeline(transaction=True)
+                pipeline = await self.db.get_pipeline(transaction=True)
                 user: UserAuth = kwargs.get('request')
                 key = user.login
                 key = '{}:{}:{}'.format(key, duration,
                                         int(time.time() // duration))
-                pipeline.incr(key)
-                pipeline.expire(key, duration)
+                await pipeline.incr(key)
+                await pipeline.expire(key, duration)
                 if pipeline.execute()[0] > limit:
                     return (
                         {'error': 'too many requests'},
@@ -40,9 +40,4 @@ class Limiter:
         return wrap
 
 
-redis = get_redis()
 
-limiter_login = LimitService(
-    db=redis,
-    key_func=get_login
-)
