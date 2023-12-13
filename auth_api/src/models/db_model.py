@@ -59,3 +59,13 @@ class UserSession(Base):
     creation_date = Column(DateTime)
     user_sessions_idx = Index('user_sessions_idx', user_id)
     sessions_idx = Index('sessions_idx', id)
+
+
+class UserPorfile(Base):
+    __tablename__ = 'user_profiles'
+
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4, unique=True, nullable=False)
+    user_id = Column(UUID(as_uuid=True), ForeignKey('users.id', ondelete='CASCADE'))
+    social_provider = Column(String(255))
+    provider_id = Column(String(255))
+    provider_login = Column(DateTime)

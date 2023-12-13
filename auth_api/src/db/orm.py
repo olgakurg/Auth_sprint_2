@@ -30,8 +30,10 @@ class AsyncDB(AbstractDB):
             object = await self.session.scalar(select(table).where(table.id == id).options(selectinload(relation)))
         elif id:
             object = await self.session.scalar(select(table).where(table.id == id))
-        else:
+        elif login:
             object = await self.session.scalar(select(table).where(table.login == login))
+        else:
+            object = None
         return object
 
     async def select_all(self, table: Base, relation: Base = None):
@@ -45,6 +47,10 @@ class AsyncDB(AbstractDB):
 
     async def get_by_uid(self, table: Base, user_id: uuid.UUID = None):
         object = await self.session.select(table).where(table.user_id == user_id)
+        return object
+
+    async def get_by_provider_id(self, table: Base, provider_id: str):
+        object = await self.session.select(table).where(table.provider_id == provider_id)
         return object
 
     async def flush(self):

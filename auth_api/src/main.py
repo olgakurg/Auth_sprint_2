@@ -13,6 +13,10 @@ from src.db.postgres import create_async_engine
 from src.helpers.auth import get_current_user_global
 from src.helpers.jaeger_tracer import configure_tracer
 
+# from authlib.integrations.starlette_client import OAuth
+# from starlette.middleware.sessions import SessionMiddleware
+
+
 logging.basicConfig(level=logging.INFO, filename="api_log.log", filemode="w")
 
 
@@ -37,6 +41,8 @@ app = FastAPI(
 FastAPIInstrumentor.instrument_app(app)
 
 
+# oauth = OAuth(app)
+
 @app.middleware('http')
 async def before_request(request: Request, call_next):
     response = await call_next(request)
@@ -46,6 +52,10 @@ async def before_request(request: Request, call_next):
     if not request_id:
         return ORJSONResponse(status_code=status.HTTP_400_BAD_REQUEST, content={'detail': 'X-Request-Id is required'})
     return response
+
+
+# app.add_middleware(SessionMiddleware, secret_key="secret-string")
+
 
 app.include_router(roles.router, prefix=f'/auth_api/v1/roles', dependencies=[Depends(get_current_user_global)])
 app.include_router(permissions.router, prefix=f'/auth_api/v1/permissions',

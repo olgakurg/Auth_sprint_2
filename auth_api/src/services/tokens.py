@@ -13,7 +13,6 @@ from src.db.orm import AsyncDB
 from src.db.postgres import get_session
 from src.db.redis import get_redis
 from src.models.db_model import User
-from src.models.users import UserAuth
 
 REFRESH_TOKEN_EXPIRES = timedelta(days=30)
 
@@ -57,8 +56,8 @@ class TokenService:
             logging.info(f'no token comes to get_tokens from _generate_tokens')
         return access_token, refresh_token
 
-    async def get_tokens(self, user: UserAuth):
-        user_db = await self.db.scalar(User, login=user.login)
+    async def get_tokens(self, login: str):
+        user_db = await self.db.scalar(User, login=login)
         access_token, refresh_token = await self._generate_tokens(user_db)
         if not access_token:
             logging.info(f'no token comes to get_tokens from _generate_tokens')
