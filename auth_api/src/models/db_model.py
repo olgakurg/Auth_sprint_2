@@ -1,6 +1,6 @@
 import uuid
 
-from sqlalchemy import Column, String, DateTime, ForeignKey, Table, Index
+from sqlalchemy import Column, String, DateTime, Numeric, ForeignKey, Table, Index
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import relationship, Mapped, declarative_base
 
@@ -46,7 +46,7 @@ class Permission(Base):
     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4, unique=True, nullable=False)
     field = Column(String(255))
     bound = Column(String(255))
-    value = Column(Float)
+    value = Column(Numeric)
     roles: Mapped[list['Role']] = relationship('Role', secondary=role_permissions, back_populates='permissions')
 
 

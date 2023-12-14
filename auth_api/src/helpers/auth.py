@@ -22,9 +22,7 @@ def roles_required(roles_list: list[str]):
             if not user or user.role not in [x.value for x in roles_list]:
                 return status.HTTP_403_FORBIDDEN
             return await function(*args, **kwargs)
-
         return wrapper
-
     return decorator
 
 

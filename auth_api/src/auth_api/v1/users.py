@@ -16,7 +16,7 @@ from src.services.sessions import get_session_service, SessionService
 from src.services.tokens import get_token_service, TokenService
 from src.services.users import get_user_service, UserService
 from .utils.settings import USER_NOT_CREATE, USER_NOT_FOUND, USER_ALREADY_EXISTS, LIMIT_OF_LOGIN_MS, LIMIT_OF_LOGIN_NUM
-from src.helpers.query_limiter import limiter_login
+from src.helpers.query_limiter import limiter, get_login
 from src.helpers.oauth import get_ya_oauth_service, YaOAuthService
 
 
@@ -60,7 +60,9 @@ async def create_user(
              description='возвращает пару токенов по данному user',
              tags=['Пользователи']
              )
-@limiter_login.limit(duration=LIMIT_OF_LOGIN_MS, limit=LIMIT_OF_LOGIN_NUM)
+@limiter(key_func=get_login,
+         duration=LIMIT_OF_LOGIN_MS,
+         limit=LIMIT_OF_LOGIN_NUM)
 async def login_user(
         user: UserAuth,
         token_service: TokenService = Depends(get_token_service),
