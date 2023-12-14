@@ -2,11 +2,11 @@ import asyncio
 import uuid
 from functools import lru_cache
 
-from fastapi import Depends
+from fastapi import Depends, HTTPException
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.db.orm import AsyncDB
-from src.models.roles import RoleApi, PermissionApi
+from src.models.roles import RoleApi, Permission, PermissionInDB
 from src.models.users import UserRolesApi
 from src.models.db_model import User, Role
 from src.db.postgres import get_session
@@ -51,7 +51,20 @@ class UserRolesService:
             return None, None
         return user_id, user_orm.roles
 
-    async def get_users_roles(self):
-        users_orm = await self.db.select_all(User, relation=User.roles)
-        return users_orm
-
+    async def get_user_permissions(self, user_id: uuid.UUID):
+        user = await self.db.scalar(User, id=user_id, relation=User.roles)
+        if not user:
+            raise HTTPException(status_code=404, detail="User not found")
+        if not user.roles:
+            raise HTTPException(status_code=403, detail="No roles for user")
+        permissions = set()
+        for role in user.roles:
+            if not role.permissions:
+                raise HTTPException(status_code=403, detail="No permissions for role")
+            for permission in role.permissions:
+                perm = Permission(
+                    field=permission.field,
+                    bound=permission.bound,
+                    value=permission.value)
+                permissions.add(perm)
+        return list(permissions)

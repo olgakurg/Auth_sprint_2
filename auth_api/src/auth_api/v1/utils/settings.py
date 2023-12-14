@@ -7,3 +7,6 @@ PERMISSION_NOT_FOUND = "Нет прав с таким идентификатор
 USER_NOT_CREATE = "Не удалось создать пользователя"
 USER_NOT_FOUND = "Нет пользователя с таким идентификатором"
 USER_ALREADY_EXISTS = "Пользователь уже сущетсвует"
+
+LIMIT_OF_LOGIN_NUM = 1
+LIMIT_OF_LOGIN_MS = 30

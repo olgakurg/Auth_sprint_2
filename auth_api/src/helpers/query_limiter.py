@@ -2,19 +2,18 @@ import time
 from functools import wraps
 from http import HTTPStatus
 from typing import Callable
-from fastapi import Request, Depends
+from fastapi import Request
+from src.db.abc_redis import AsyncRedis
+from src.db.redis import get_redis
 
-from src.models.users import UserAuth
 
-
-async def get_login(request: Request):
-    body = await request.json()
-    return body['login']
+def get_login(request: Request):
+    return request.query_params.get('login')
 
 
 class Limiter:
-    def __init__(self, redis, key_func: Callable):
-        self.db = redis
+    def __init__(self, key_func: Callable):
+        self.db = get_redis()
         self.key_func = key_func
 
     async def limit(self, duration, limit):
@@ -22,8 +21,7 @@ class Limiter:
             @wraps(fn)
             async def wrapper(*args, **kwargs):
                 pipeline = await self.db.get_pipeline(transaction=True)
-                user: UserAuth = kwargs.get('request')
-                key = user.login
+                key = self.key_func()
                 key = '{}:{}:{}'.format(key, duration,
                                         int(time.time() // duration))
                 await pipeline.incr(key)
@@ -40,4 +38,4 @@ class Limiter:
         return wrap
 
 
-
+limiter_login = Limiter(key_func=get_login)

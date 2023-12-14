@@ -39,3 +39,7 @@ class SessionService:
     async def get_sessions(self, user_id):
         sessions = await self.db.get_by_uid(UserSession, user_id=user_id)
         return sessions
+
+    async def close_session(self, login):
+        sessions = await self.db.get_by_uid(UserSession, user_id=user_id)
+        return sessions
