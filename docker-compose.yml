@@ -1,0 +1,117 @@
+version: '3'
+services:
+
+  redis:
+    image: redis:latest
+    container_name: redis
+
+  auth_jaeger:
+    image: jaegertracing/all-in-one:latest
+    container_name: auth_jaeger
+    ports:
+      - "5775:5775/udp"
+      - "6831:6831/udp"
+      - "6832:6832/udp"
+      - "5778:5778/tcp"
+      - "16686:16686"
+      - "14268:14268"
+      - "9411:9411"
+
+  auth_db:
+    image: postgres:15-alpine
+    container_name: auth_db
+    environment:
+      POSTGRES_PASSWORD: ${db_password}
+      POSTGRES_USER: ${db_user}
+      POSTGRES_DB: ${db_name}
+    env_file:
+      - ./auth_api/.env
+
+  auth_api:
+    build:
+      context: ./auth_api/
+    env_file:
+      - ./auth_api/.env
+    container_name: auth_api
+    depends_on:
+      - auth_db
+      - redis
+      - auth_jaeger
+    expose:
+      - "80"
+
+  elastic:
+    image: elasticsearch:8.6.2
+    container_name: elastic
+    environment:
+      - discovery.type=single-node
+      - xpack.security.enabled=false
+      - ES_JAVA_OPTS=-Xms2000m -Xmx2000m
+    volumes:
+      - ./data/elastic:/usr/share/elasticsearch/data
+    expose:
+      - "9200"
+
+  async_api:
+    build:
+      context: ./async_api/
+    env_file:
+      - ./async_api/.env
+    container_name: async_api
+    depends_on:
+      - elastic
+      - redis
+    expose:
+      - "80"
+
+  movies_db:
+    image: postgres:15-alpine
+    volumes:
+      - ./postgresql_data:/var/lib/postgresql/data
+    environment:
+      POSTGRES_PASSWORD: ${db_password}
+      POSTGRES_USER: ${db_user}
+      POSTGRES_DB: ${db_name}
+      PG_DATA: /var/lib/postgresql/base
+    container_name: movies_db
+    env_file:
+      - ./ETL/envFile/db.env
+
+  etl:
+    build:
+      context: ./ETL/
+    volumes:
+      - ./etl:/opt/app
+    container_name: etl
+    ports:
+      - "8000:8000"
+    env_file:
+      - ./ETL/envFile/.env
+    depends_on:
+      - movies_db
+      - elastic
+    restart: always
+
+  movies_admin:
+    build:
+      context: ./movies_admin/
+    env_file:
+      - ./movies_admin/config/.env
+    container_name: movies_admin
+    depends_on:
+      - movies_db
+    expose:
+      - "80"
+
+  nginx:
+    image: nginx:1.25
+    ports:
+      - "80:80"
+    volumes:
+      - ./configs/nginx/nginx.conf:/etc/nginx/nginx.conf
+      - ./configs/nginx/conf.d:/etc/nginx/conf.d
+      - ./data/models:/var/www/html/models
+    depends_on:
+      - auth_api
+      - movies_admin
+      - async_api

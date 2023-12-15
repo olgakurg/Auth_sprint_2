@@ -1,0 +1,43 @@
+version: '3'
+services:
+
+  elastic:
+    image: elasticsearch:8.6.2
+    container_name: elastic
+    environment:
+      - discovery.type=single-node
+      - xpack.security.enabled=false
+      - ES_JAVA_OPTS=-Xms2000m -Xmx2000m
+    volumes:
+      - ./data/elastic:/usr/share/elasticsearch/data
+    expose:
+      - "9200"
+
+
+  movies_db:
+    image: postgres:15-alpine
+    volumes:
+      - ./postgresql_data:/var/lib/postgresql/data
+    environment:
+      POSTGRES_PASSWORD: ${db_password}
+      POSTGRES_USER: ${db_user}
+      POSTGRES_DB: ${db_name}
+      PG_DATA: /var/lib/postgresql/base
+    container_name: movies_db
+    env_file:
+      - ./envFile/db.env
+
+  etl:
+    build:
+      context: ./.
+    volumes:
+      - ./etl:/opt/app
+    container_name: etl
+    ports:
+      - "8000:8000"
+    env_file:
+      - ./envFile/.env
+    depends_on:
+      - movies_db
+      - elastic
+    restart: always
