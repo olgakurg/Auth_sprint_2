@@ -1,0 +1,5 @@
+django==4.2.5
+flake8==6.1.0
+python-dotenv==1.0.0
+psycopg==3.1.10
+django_split_settings==1.2.0

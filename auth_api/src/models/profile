@@ -1,0 +1,14 @@
+from pydantic import BaseModel, EmailStr
+from datetime import date
+from typing import Optional
+
+
+class UserProfile(BaseModel):
+    profile_id: str
+    birth_date: date
+    email: EmailStr
+    login: Optional[str]
+    first_name: Optional[str]
+    last_name: Optional[str]
+    gender: Optional[str]
+    phone_access: Optional[bool] = False

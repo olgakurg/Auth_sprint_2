@@ -4,14 +4,20 @@ from uuid import UUID
 from pydantic import BaseModel
 
 
-class PermissionApi(BaseModel):
-    name: str
+class Permission(BaseModel):
+    field: str
+    bound: str
+    value: float
 
 
 class PermissionInDB(BaseModel):
     id: uuid.UUID
-    name: str
+    field: str
+    bound: str
+    value: float
 
+    class Config:
+        from_attributes = True
 
 class RoleApi(BaseModel):
     name: str

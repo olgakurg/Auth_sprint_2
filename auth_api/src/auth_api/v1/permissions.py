@@ -4,7 +4,7 @@ from http import HTTPStatus
 from fastapi import APIRouter, Depends, HTTPException
 
 from src.helpers.auth import roles_required
-from src.models.roles import PermissionApi
+from src.models.roles import Permission
 from src.services.roles import get_role_service, RoleService
 from .utils.settings import PERMISSION_NOT_CREATE, PERMISSION_NOT_FOUND
 
@@ -19,7 +19,7 @@ router = APIRouter()
              )
 @roles_required(roles_list=['superuser'])
 async def create_permission(
-        permission: PermissionApi,
+        permission: Permission,
         role_service: RoleService = Depends(get_role_service)
 ):
     permission_id = await role_service.create_permission(permission)
@@ -30,7 +30,7 @@ async def create_permission(
 
 
 @router.get('/{permission_id}',
-             response_model=PermissionApi,
+            response_model=Permission,
              status_code=HTTPStatus.OK,
              summary='Получение прав',
              description='Получить права по uuid',
@@ -40,7 +40,7 @@ async def create_permission(
 async def get_permission(
         permission_id: uuid.UUID,
         role_service: RoleService = Depends(get_role_service)
-) -> PermissionApi:
+) -> Permission:
     permission = await role_service.get_permission(permission_id)
 
     if not permission:

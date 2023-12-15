@@ -1,7 +1,6 @@
 import json
 
 from redis.asyncio import Redis
-
 from src.db.abc import AbstractCache
 
 
@@ -29,3 +28,6 @@ class AsyncRedis(AbstractCache):
 
     async def flush_all(self):
         await self.redis.flushall(asynchronous=True)
+
+    async def get_pipeline(self, **kwargs):
+        return await self.redis.pipeline(**kwargs)

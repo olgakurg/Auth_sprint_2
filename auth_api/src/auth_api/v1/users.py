@@ -1,20 +1,25 @@
 import uuid
 from datetime import datetime
 from http import HTTPStatus
+import httpx
 
 from async_fastapi_jwt_auth import AuthJWT
 from fastapi import APIRouter, Depends
 from fastapi import HTTPException
+from starlette.responses import RedirectResponse
 
 from src.core.config import settings
 from src.models.session import SessionInDB
-from src.models.token import Token
-from src.models.users import UserApi
-from src.models.users import UserAuth
+from src.models.token import Token, YaToken, YaUser
+from src.models.users import UserApi, UserAuth
 from src.services.sessions import get_session_service, SessionService
-from src.services.tokens import TokenService, get_token_service
+from src.services.tokens import get_token_service, TokenService
 from src.services.users import get_user_service, UserService
-from .utils.settings import USER_NOT_CREATE, USER_NOT_FOUND, USER_ALREADY_EXISTS
+from .utils.settings import USER_NOT_CREATE, USER_NOT_FOUND, USER_ALREADY_EXISTS, LIMIT_OF_LOGIN_MS, LIMIT_OF_LOGIN_NUM
+from src.helpers.query_limiter import limiter, get_login
+from src.helpers.oauth import get_ya_oauth_service, YaOAuthService
+
+
 
 router = APIRouter()
 
@@ -22,6 +27,7 @@ router = APIRouter()
 @AuthJWT.load_config
 def get_config():
     return settings
+
 
 @router.get('/')
 async def get_root():
@@ -54,6 +60,9 @@ async def create_user(
              description='возвращает пару токенов по данному user',
              tags=['Пользователи']
              )
+@limiter(key_func=get_login,
+         duration=LIMIT_OF_LOGIN_MS,
+         limit=LIMIT_OF_LOGIN_NUM)
 async def login_user(
         user: UserAuth,
         token_service: TokenService = Depends(get_token_service),
@@ -62,8 +71,8 @@ async def login_user(
     correct_password = await user_service.check_password(user)
     if not correct_password:
         raise HTTPException(status_code=HTTPStatus.NOT_FOUND, detail=USER_NOT_FOUND)
-    session_id = await session_service.create_session(user, datetime.now())
-    access_token, refresh_token = await token_service.get_tokens(user)
+    await session_service.create_session(user, datetime.now())
+    access_token, refresh_token = await token_service.get_tokens(user.login)
     token = Token(access=access_token, refresh=refresh_token)
     return token.model_dump()
 
@@ -75,7 +84,7 @@ async def login_user(
              tags=['Роли']
              )
 async def refresh(Authorize: AuthJWT = Depends(),
-                        token_service: TokenService = Depends(get_token_service)) -> Token | None:
+                  token_service: TokenService = Depends(get_token_service)) -> Token | None:
     await Authorize.jwt_refresh_token_required()
     current_user = await Authorize.get_jwt_subject()
     access_token, new_refresh = await token_service.exchange_tokens(current_user)
@@ -83,7 +92,6 @@ async def refresh(Authorize: AuthJWT = Depends(),
         raise HTTPException(status_code=HTTPStatus.NON_AUTHORITATIVE_INFORMATION, detail=USER_NOT_CREATE)
     token = Token(access=access_token, refresh=new_refresh)
     return token.model_dump()
-
 
 
 @router.put('/update_user',
@@ -97,11 +105,10 @@ async def edit_user(user: UserApi, Authorize: AuthJWT = Depends(),
     """Метод использует ручку для обновления данных пользователя по uuid.
      Валидация по типу данных на содержимое возвращает 400
        """
-    await Authorize.jwt_refresh_token_required()
+    await Authorize.fresh_token_required()
     user_id = await Authorize.get_jwt_subject()
     new_user = user_service.update_user(user_id, user)
     return new_user
-
 
 
 @router.post('/signout',
@@ -111,8 +118,9 @@ async def edit_user(user: UserApi, Authorize: AuthJWT = Depends(),
              tags=['Пользователи']
              )
 async def logout_token(Authorize: AuthJWT = Depends(),
-                       token_service: TokenService = Depends(get_token_service)):
-    await Authorize.jwt_required()
+                       token_service: TokenService = Depends(get_token_service),
+                       session_service: SessionService = Depends(get_session_service)):
+    await Authorize.fresh_jwt_required()
     jti = (await Authorize.get_raw_jwt())["jti"]
     await token_service.remove_token(jti)
 
@@ -128,3 +136,33 @@ async def get_user_sessions(user_id: str,
     if not user_id:
         raise HTTPException(status_code=HTTPStatus.NON_AUTHORITATIVE_INFORMATION, detail=USER_NOT_FOUND)
     return session_service.get_sessions(user_id)
+
+
+@router.get("/ya_signup/",
+            status_code=HTTPStatus.OK,
+            summary='вход пользователя в аккаунт по Oauth',
+            description='возвращает редирект на страницу соцсети для получения токенов',
+            tags=['Пользователи'])
+async def auth_social(ya_oauth: YaOAuthService = Depends(get_ya_oauth_service)):
+    url = await ya_oauth.auth()
+    return RedirectResponse(url=url)
+
+@router.post("/ya_signin/",
+             status_code=HTTPStatus.OK,
+             response_model=Token,
+             summary='вход пользователя в аккаунт по Oauth',
+             description='возвращает редирект на страницу соцсети для получения токенов',
+             tags=['Пользователи']
+             )
+async def login_social(
+        code: int,
+        token_service: TokenService = Depends(get_token_service),
+        session_service: SessionService = Depends(get_session_service),
+        ya_oauth: YaOAuthService = Depends(get_ya_oauth_service)
+
+):
+    login = ya_oauth.exchange_code(code)
+    access_token, refresh_token = await token_service.get_tokens(login)
+    await session_service.create_session(login, datetime.now())
+    token = Token(access=access_token, refresh=refresh_token)
+    return token.model_dump()

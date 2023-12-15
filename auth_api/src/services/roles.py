@@ -8,7 +8,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from src.db.orm import AsyncDB
 from src.db.postgres import get_session
 from src.models.db_model import Permission, Role
-from src.models.roles import RoleApi, PermissionApi
+from src.models.roles import RoleApi, Permission
 
 
 @lru_cache()
@@ -63,7 +63,7 @@ class RoleService:
         roles = await self.db.select_all(Role)
         return roles
 
-    async def create_permission(self, permission: PermissionApi):
+    async def create_permission(self, permission: Permission):
         object = Permission(**permission.model_dump())
         permission_id = await self.db.insert(object)
         return permission_id

@@ -3,9 +3,10 @@ from http import HTTPStatus
 
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
+from async_fastapi_jwt_auth import AuthJWT
 
 from src.helpers.auth import roles_required
-from src.models.roles import RoleShort
+from src.models.roles import RoleShort, Permission
 from src.models.users import UserRolesApi, UserInDB
 from src.services.user_roles import get_user_roles_service, UserRolesService
 from .utils.settings import USER_NOT_FOUND
@@ -13,17 +14,11 @@ from .utils.settings import USER_NOT_FOUND
 router = APIRouter()
 
 
-class Permission(BaseModel):
-    id: str
-    name: str
-
 class Role(BaseModel):
     id: str
     name: str
     description: str | None
     permissions: list[Permission]
-
-
 
 
 @router.put('/',
@@ -40,8 +35,6 @@ async def put_user_roles(
 
     if not user:
         raise HTTPException(status_code=HTTPStatus.NOT_FOUND, detail=USER_NOT_FOUND)
-
-
 
 
 @router.delete('/',
@@ -65,6 +58,7 @@ async def delete_user_role(
     if not user:
         raise HTTPException(status_code=HTTPStatus.NOT_FOUND, detail=USER_NOT_FOUND)
 
+
 @router.get('/{user_id}',
             status_code=HTTPStatus.OK,
             response_model=list[RoleShort],
@@ -77,13 +71,31 @@ async def delete_user_role(
 async def get_user_roles(
         user_id: uuid.UUID,
         user_roles_service: UserRolesService = Depends(get_user_roles_service)) -> list[RoleShort]:
-    """Метод использует ручку для возврата 200 или 404. если роли нет.     """
+    """Метод использует ручку для возврата 200 или 403. если роли нет.     """
     user, roles = await user_roles_service.get_user_roles(user_id)
 
     if not user:
         raise HTTPException(status_code=HTTPStatus.NOT_FOUND, detail=USER_NOT_FOUND)
 
     return roles
+
+
+@router.get('/permissions',
+            status_code=HTTPStatus.OK,
+            response_model=list[Permission],
+            summary='метод для получения прав пользователя',
+            description='Возвращает список всех имеющихся прав по актуальному токену пользвателя',
+            response_description='...',
+            tags=['Управление доступом']
+            )
+async def get_user_permissions(
+        user_roles_service: UserRolesService = Depends(get_user_roles_service),
+        Authorize: AuthJWT = Depends()) -> list[Permission]:
+    if not await Authorize.fresh_jwt_required():
+        raise HTTPException(status_code=HTTPStatus.FORBIDDEN)
+    user_id = Authorize.get_jwt_subject()
+    permissions = await user_roles_service.get_user_permissions(user_id)
+    return permissions.model_dump()
 
 
 @router.get('/',
@@ -94,9 +106,7 @@ async def get_user_roles(
             response_description='...',
             tags=['Управление доступом']
             )
-
 async def get_user_list(user_roles_service: UserRolesService = Depends(get_user_roles_service)):
-
     """Метод использует ручку для возвращения списка пользователей с ролями
     \\ Обработки ошибок и валидации данных нет. Сортировки, пагинации нет.
      """
