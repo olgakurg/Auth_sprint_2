@@ -4,7 +4,10 @@ from contextlib import asynccontextmanager
 from fastapi import FastAPI, Request, status, Depends
 from fastapi.responses import ORJSONResponse
 from redis.asyncio import Redis
+
 from opentelemetry.instrumentation.fastapi import FastAPIInstrumentor
+from fastapi_limiter import FastAPILimiter
+
 
 from src.auth_api.v1 import roles, permissions, user_roles, users
 from src.core.config import settings
@@ -13,8 +16,6 @@ from src.db.postgres import create_async_engine
 from src.helpers.auth import get_current_user_global
 from src.helpers.jaeger_tracer import configure_tracer
 
-# from authlib.integrations.starlette_client import OAuth
-# from starlette.middleware.sessions import SessionMiddleware
 
 
 logging.basicConfig(level=logging.INFO, filename="api_log.log", filemode="w")
@@ -25,12 +26,15 @@ async def lifespan(app: FastAPI):
     redis.redis = Redis(host=settings.redis_host, port=settings.redis_port)
     dsn = f'postgresql+asyncpg://{settings.db_user}:{settings.db_password}@{settings.db_host}:{settings.db_port}/{settings.db_name}'
     engine = create_async_engine(dsn, echo=False, future=True)
+    await FastAPILimiter.init(redis.redis)
 
     yield
     await engine.dispose()
     await redis.redis.close()
 
-configure_tracer()
+
+if settings.enable_tracer:
+    configure_tracer()
 
 
 app = FastAPI(
@@ -40,8 +44,6 @@ app = FastAPI(
 
 FastAPIInstrumentor.instrument_app(app)
 
-
-# oauth = OAuth(app)
 
 @app.middleware('http')
 async def before_request(request: Request, call_next):
@@ -54,7 +56,6 @@ async def before_request(request: Request, call_next):
     return response
 
 
-# app.add_middleware(SessionMiddleware, secret_key="secret-string")
 
 
 app.include_router(roles.router, prefix=f'/auth_api/v1/roles', dependencies=[Depends(get_current_user_global)])

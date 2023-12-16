@@ -62,7 +62,7 @@ class UserSession(Base):
     sessions_idx = Index('sessions_idx', id)
 
 
-class UserPorfile(Base):
+class UserProfile(Base):
     __tablename__ = 'user_profiles'
 
     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4, unique=True, nullable=False)

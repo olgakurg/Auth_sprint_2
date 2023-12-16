@@ -16,6 +16,11 @@
       <excludeFolder url="file://$MODULE_DIR$/auth_api/data/data/pg_twophase" />
       <excludeFolder url="file://$MODULE_DIR$/auth_api/data/data/pg_wal/archive_status" />
       <excludeFolder url="file://$MODULE_DIR$/auth_api/data/models" />
+      <excludeFolder url="file://$MODULE_DIR$/async_api/data" />
+      <excludeFolder url="file://$MODULE_DIR$/async_api/venv" />
+      <excludeFolder url="file://$MODULE_DIR$/data" />
+      <excludeFolder url="file://$MODULE_DIR$/movies_admin/env" />
+      <excludeFolder url="file://$MODULE_DIR$/postgresql_data" />
     </content>
     <orderEntry type="jdk" jdkName="Python 3.10" jdkType="Python SDK" />
     <orderEntry type="sourceFolder" forTests="false" />

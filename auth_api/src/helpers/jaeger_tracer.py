@@ -6,7 +6,10 @@ from opentelemetry.exporter.jaeger.thrift import JaegerExporter
 from src.core.config import settings
 
 def configure_tracer() -> None:
-    trace.set_tracer_provider(TracerProvider())
+    resource = Resource(attributes={
+        SERVICE_NAME: f'{settings.project_name}'
+    })
+    trace.set_tracer_provider(TracerProvider(resource))
     trace.get_tracer_provider().add_span_processor(
         BatchSpanProcessor(
             JaegerExporter(
@@ -15,5 +18,6 @@ def configure_tracer() -> None:
             )
         )
     )
-    # Чтобы видеть трейсы в консоли
-    # trace.get_tracer_provider().add_span_processor(BatchSpanProcessor(ConsoleSpanExporter()))
+
+    if settings.show_traces_console:
+        trace.get_tracer_provider().add_span_processor(BatchSpanProcessor(ConsoleSpanExporter()))
