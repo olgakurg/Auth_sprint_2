@@ -7,3 +7,5 @@
 /env/
 /venv/
 .env
+/async_api/tasks/01_SOLID_ES.md
+/.env

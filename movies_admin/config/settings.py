@@ -53,3 +53,7 @@ include(
 )
 
 LOCALE_PATHS = ['movies/locale']
+
+AUTH_HOST = os.environ.get('AUTH_HOST')
+AUTH_PORT = os.environ.get('AUTH_PORT')
+AUTH_API_ROUTE = os.environ.get('AUTH_API_ROUTE')
