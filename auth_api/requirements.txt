@@ -27,4 +27,6 @@ opentelemetry-sdk==1.21.0
 opentelemetry-exporter-jaeger==1.21.0
 opentelemetry-instrumentation-fastapi==0.42b0
 
+fastapi-limiter==0.1.5
+
 

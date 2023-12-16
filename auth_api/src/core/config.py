@@ -1,7 +1,6 @@
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
-
 class Settings(BaseSettings):
     model_config = SettingsConfigDict(extra='ignore')
     api_version: str
@@ -20,12 +19,19 @@ class Settings(BaseSettings):
     db_echo: bool = False
     jaeger_host: str = "localhost"
     jaeger_port: int = 6831
-    yandex_client_id: str
-    yandex_client_secret: str
-    yandex_authorize_url: str
-    yandex_api_base_url: str
-    yandex_access_token_url: str
-    yandex_userinfo_endpoint: str
+    enable_tracer: bool = True
+    show_traces_console: bool = True
+    oauth_providers = {'yandex':
+        {
+            "client_id": "4e111d99484e4ca39bf3867b50c32d3c",
+            "client_secret": "d65035f255d34fe481f0428b6ec14a3b",
+            "url_auth": "https://oauth.yandex.ru/authorize?response_type=code",
+            "api_base_url": "https://oauth.yandex.ru",
+            "access_token_url": "https://oauth.yandex.ru/token",
+            "userinfo_endpoint": "https://login.yandex.ru/info",
+            "url_login": "https://login.yandex.ru/info?format=json",
+        }
+    }
 
 
 settings = Settings(_env_file='.env')

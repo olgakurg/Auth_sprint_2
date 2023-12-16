@@ -7,6 +7,7 @@ from async_fastapi_jwt_auth import AuthJWT
 from fastapi import APIRouter, Depends
 from fastapi import HTTPException
 from starlette.responses import RedirectResponse
+from fastapi_limiter.depends import RateLimiter
 
 from src.core.config import settings
 from src.models.session import SessionInDB
@@ -17,9 +18,7 @@ from src.services.tokens import get_token_service, TokenService
 from src.services.users import get_user_service, UserService
 from .utils.settings import USER_NOT_CREATE, USER_NOT_FOUND, USER_ALREADY_EXISTS, LIMIT_OF_LOGIN_MS, LIMIT_OF_LOGIN_NUM
 from src.helpers.query_limiter import limiter, get_login
-from src.helpers.oauth import get_ya_oauth_service, YaOAuthService
-
-
+from src.helpers.oauth import get_oauth_service, OAuthService
 
 router = APIRouter()
 
@@ -138,16 +137,19 @@ async def get_user_sessions(user_id: str,
     return session_service.get_sessions(user_id)
 
 
-@router.get("/ya_signup/",
+@router.get("/social_signup/{provider}",
             status_code=HTTPStatus.OK,
             summary='вход пользователя в аккаунт по Oauth',
             description='возвращает редирект на страницу соцсети для получения токенов',
-            tags=['Пользователи'])
-async def auth_social(ya_oauth: YaOAuthService = Depends(get_ya_oauth_service)):
-    url = await ya_oauth.auth()
+            tags=['Пользователи'],
+            dependencies=[Depends(RateLimiter(times=LIMIT_OF_LOGIN_NUM, seconds=LIMIT_OF_LOGIN_MS))])
+async def auth_social(provider: str,
+                      oauth: OAuthService = Depends(get_oauth_service)):
+    url = await oauth.auth(provider)
     return RedirectResponse(url=url)
 
-@router.post("/ya_signin/",
+
+@router.post("/social_signin/{provider}",
              status_code=HTTPStatus.OK,
              response_model=Token,
              summary='вход пользователя в аккаунт по Oauth',
@@ -156,12 +158,13 @@ async def auth_social(ya_oauth: YaOAuthService = Depends(get_ya_oauth_service)):
              )
 async def login_social(
         code: int,
+        provider: str,
         token_service: TokenService = Depends(get_token_service),
         session_service: SessionService = Depends(get_session_service),
-        ya_oauth: YaOAuthService = Depends(get_ya_oauth_service)
+        oauth: OAuthService = Depends(get_oauth_service())
 
 ):
-    login = ya_oauth.exchange_code(code)
+    login = oauth.exchange_code(provider, code)
     access_token, refresh_token = await token_service.get_tokens(login)
     await session_service.create_session(login, datetime.now())
     token = Token(access=access_token, refresh=refresh_token)
