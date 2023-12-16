@@ -1,0 +1,30 @@
+version: '3'
+services:
+  test_redis:
+    image: redis:6-alpine
+    container_name: test_redis
+
+  test_elastic:
+    image: elasticsearch:8.6.2
+    container_name: test_elastic
+    environment:
+      - discovery.type=single-node
+      - xpack.security.enabled=false
+      - ES_JAVA_OPTS=-Xms2000m -Xmx2000m
+
+  test_api:
+    build:
+      context: ../../.
+      dockerfile: Dockerfile
+    env_file:
+      - .env
+    restart: always
+    image: test_api
+    container_name: test_api
+    volumes:
+      - ../../:/var/www/test_api
+    ports:
+      - "8000:8000"
+    depends_on:
+      - test_elastic
+      - test_redis

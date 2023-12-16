@@ -1,0 +1,17 @@
+version: '3'
+services:
+  test_redis:
+    image: redis:latest
+    ports:
+      - "6379:6379"
+
+  test_elastic:
+    image: elasticsearch:8.6.2
+    environment:
+      - discovery.type=single-node
+      - xpack.security.enabled=false
+      - ES_JAVA_OPTS=-Xms2000m -Xmx2000m
+    ports:
+      - "9200:9200"
+
+
